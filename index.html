@@ -85,9 +85,19 @@
             border: 3px solid #1a2f1a; 
             cursor: pointer; 
         }
+
+        /* Animations pour les étoiles et la coupe */
+        .star { font-size: clamp(40px, 10vw, 80px); color: #ffd700; text-shadow: 0 0 20px gold; display: inline-block; animation: pop 0.5s ease-out forwards; opacity: 0; margin: 0 5px; }
+        .trophy { font-size: clamp(80px, 15vw, 120px); animation: bounce 1s infinite alternate; }
+        @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
+        
+        #confetti-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 300; display: none; }
     </style>
 </head>
 <body>
+
+    <canvas id="confetti-canvas"></canvas>
 
     <div id="menu" class="menu-overlay">
         <h1 class="text-5xl md:text-7xl font-black mb-4 text-yellow-500 uppercase tracking-tighter">JURASSIC SAFARI</h1>
@@ -96,6 +106,7 @@
     </div>
 
     <div id="end-screen">
+        <div id="end-visuals" class="mb-4 h-32 flex items-center justify-center"></div>
         <h2 id="end-title" class="text-5xl font-black mb-4 text-yellow-500">TOUR TERMINÉ</h2>
         <p id="end-score" class="text-2xl mb-8 font-bold"></p>
         <button class="btn" onclick="location.reload()">RECOMMENCER</button>
@@ -127,17 +138,14 @@
             { id: 'girafe', en: 'giraffe' },
             { id: 'antilope', en: 'antelope' },
             { id: 'zebre', en: 'zebra' },
-            { id: 'lion', en: 'lion' },
-            { id: 'crocodile', en: 'crocodile' },
-            { id: 'serpent', en: 'snake' },
-            { id: 'tigre', en: 'tiger' }
         ];
 
         let scene, camera, renderer, car, clock;
         let questionCount = 0;
         let correctAnswers = 0;
         let currentTarget = null;
-        let enclosureGroup = null;
+        let activeEnclosures = [];
+        let currentEnclosure = null;
         let isPlaying = false;
         let isMoving = false;
         let gameSpeed = 0;
@@ -150,6 +158,9 @@
         let timerInterval = null;
         let isAnswered = false;
         
+        let confettis = [];
+        let confCanvas, confCtx;
+
         const apiKey = "";
         const textureLoader = new THREE.TextureLoader();
         const raycaster = new THREE.Raycaster();
@@ -189,6 +200,11 @@
             }
 
             clock = new THREE.Clock();
+            
+            confCanvas = document.getElementById('confetti-canvas');
+            confCtx = confCanvas.getContext('2d');
+            resizeConfetti();
+
             animate();
 
             window.addEventListener('mousedown', onSceneClick);
@@ -329,7 +345,6 @@
             });
 
             car.position.y = 0.2;
-            // Rotation à 180 degrés pour remettre le pare-buffle dans le bon sens d'avancée
             car.rotation.y = Math.PI; 
             scene.add(car);
         }
@@ -364,84 +379,101 @@
             scenery.push(tree);
         }
 
-        async function spawnEnclosure() {
-            if (enclosureGroup) scene.remove(enclosureGroup);
+        function spawnEnclosure() {
             currentTarget = animals[Math.floor(Math.random() * animals.length)];
             const others = animals.filter(a => a.id !== currentTarget.id).sort(() => 0.5 - Math.random()).slice(0, 3);
             const choices = [currentTarget, ...others].sort(() => 0.5 - Math.random());
             
-            enclosureGroup = new THREE.Group();
+            const newEnclosure = new THREE.Group();
             
             const wall = new THREE.Mesh(new THREE.BoxGeometry(1, 12, 30), new THREE.MeshPhongMaterial({ color: 0x222222 }));
             wall.position.set(-15, 6, 0);
-            enclosureGroup.add(wall);
+            newEnclosure.add(wall);
 
             [2, 4, 6, 8, 10].forEach(y => {
                 const wire = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 30), new THREE.MeshPhongMaterial({color: 0x555555}));
                 wire.position.set(-14.4, y, 0);
-                enclosureGroup.add(wire);
+                newEnclosure.add(wire);
             });
 
             choices.forEach((choice, i) => {
-                const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const signGroup = new THREE.Group();
+
+                // Cube de fond (Blanc par défaut, change de couleur au clic)
+                const bgMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+                const bgBox = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.2, 4.2), bgMat);
+                signGroup.add(bgBox);
+
+                // Image de l'animal transparente posée devant le cube
+                const imgMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true });
                 textureLoader.load(`${choice.id}.png`, (tex) => {
-                    mat.map = tex; mat.needsUpdate = true;
+                    imgMat.map = tex; imgMat.needsUpdate = true;
                 }, undefined, () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = 512; canvas.height = 512;
                     const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#eab308'; ctx.fillRect(0,0,512,512);
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,512,512); // Fond de remplacement
                     ctx.strokeStyle = '#000'; ctx.lineWidth = 15; ctx.strokeRect(5,5,502,502);
-                    mat.map = new THREE.CanvasTexture(canvas); mat.needsUpdate = true;
+                    imgMat.map = new THREE.CanvasTexture(canvas); imgMat.needsUpdate = true;
                 });
 
-                const sign = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.2, 4.2), mat);
-                sign.rotation.y = -0.15; 
-                sign.position.set(-13, 5, -6.75 + (i * 4.5));
-                sign.userData = { id: choice.id };
+                const imgPlane = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), imgMat);
+                imgPlane.position.x = 0.06; // Avancé de justesse pour éviter le clipping
+                imgPlane.rotation.y = Math.PI / 2; // Face à la caméra
+                signGroup.add(imgPlane);
+
+                signGroup.rotation.y = -0.15; 
+                signGroup.position.set(-13, 5, -6.75 + (i * 4.5));
+                
+                // Liens pour le Raycaster
+                signGroup.userData = { id: choice.id, bgMesh: bgBox };
+                bgBox.userData = { parentGroup: signGroup };
+                imgPlane.userData = { parentGroup: signGroup };
                 
                 const spot = new THREE.PointLight(0xffffff, 0.6, 12);
                 spot.position.set(-10, 5, -6.75 + (i * 4.5));
-                enclosureGroup.add(spot);
-                enclosureGroup.add(sign);
+                newEnclosure.add(spot);
+                newEnclosure.add(signGroup);
             });
 
-            enclosureGroup.position.z = -180;
-            scene.add(enclosureGroup);
+            newEnclosure.position.z = -180;
+            scene.add(newEnclosure);
+            activeEnclosures.push(newEnclosure);
+            currentEnclosure = newEnclosure;
         }
 
         function onSceneClick(e) {
-            if (!isPlaying || isMoving || isAnswered || !enclosureGroup) return;
+            if (!isPlaying || isMoving || isAnswered || !currentEnclosure) return;
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(enclosureGroup.children);
-            const clickedSign = intersects.find(intersect => intersect.object.userData && intersect.object.userData.id);
-            if (clickedSign) handleSelection(clickedSign.object);
+            
+            const intersects = raycaster.intersectObjects(currentEnclosure.children, true);
+            const clickedPart = intersects.find(intersect => intersect.object.userData && intersect.object.userData.parentGroup);
+            if (clickedPart) handleSelection(clickedPart.object.userData.parentGroup);
         }
 
-        function handleSelection(obj) {
+        function handleSelection(signGroup) {
             isAnswered = true;
             stopTimer();
             const feedbackEl = document.getElementById('feedback-text');
             
-            // Recherche du panneau avec la bonne réponse
-            const correctObj = enclosureGroup.children.find(c => c.userData && c.userData.id === currentTarget.id);
+            const correctSign = currentEnclosure.children.find(c => c.userData && c.userData.id === currentTarget.id);
             
-            if (obj.userData.id === currentTarget.id) {
+            if (signGroup.userData.id === currentTarget.id) {
                 correctAnswers++;
                 feedbackEl.innerText = "EXCELLENT!";
                 feedbackEl.style.color = "#4ade80";
-                obj.material.color.setHex(0x4ade80); // Colore l'image cliquée en Vert
+                signGroup.userData.bgMesh.material.color.setHex(0x4ade80); // Fond Vert
                 speak("Excellent! That is the " + currentTarget.en + ".");
             } else {
                 feedbackEl.innerText = "OOPS...";
                 feedbackEl.style.color = "#ef4444";
-                obj.material.color.setHex(0xef4444); // Colore l'image cliquée en Rouge
-                if (correctObj) {
-                    correctObj.material.color.setHex(0x4ade80); // Colore la bonne réponse en Vert
+                signGroup.userData.bgMesh.material.color.setHex(0xef4444); // Fond Rouge pour erreur
+                if (correctSign) {
+                    correctSign.userData.bgMesh.material.color.setHex(0x4ade80); // Fond Vert pour la vraie réponse
                 }
-                const hitAnimal = animals.find(a => a.id === obj.userData.id);
+                const hitAnimal = animals.find(a => a.id === signGroup.userData.id);
                 speak("No, that was the " + hitAnimal.en + ". The " + currentTarget.en + " was there.");
             }
             
@@ -480,10 +512,9 @@
             feedbackEl.style.color = "#fbbf24";
             feedbackEl.style.opacity = "1";
             
-            // Montre la bonne réponse en vert quand le temps est écoulé
-            if (enclosureGroup) {
-                const correctObj = enclosureGroup.children.find(c => c.userData && c.userData.id === currentTarget.id);
-                if (correctObj) correctObj.material.color.setHex(0x4ade80);
+            if (currentEnclosure) {
+                const correctSign = currentEnclosure.children.find(c => c.userData && c.userData.id === currentTarget.id);
+                if (correctSign) correctSign.userData.bgMesh.material.color.setHex(0x4ade80);
             }
 
             setTimeout(() => { feedbackEl.style.opacity = "0"; }, 2500);
@@ -492,9 +523,8 @@
         }
 
         function proceedToNext() {
-            // Un peu plus de délai pour bien voir les couleurs de feedback avant d'avancer
             setTimeout(() => {
-                if(enclosureGroup) { scene.remove(enclosureGroup); enclosureGroup = null; }
+                // On ne supprime plus l'enclos ici, il partira vers l'arrière lors du mouvement
                 nextTurn();
             }, 3500); 
         }
@@ -547,38 +577,89 @@
             if (questionCount >= 10) { endGame(); return; }
             questionCount++;
             document.getElementById('progress').innerText = `ENCLOS ${questionCount} / 10`;
-            await spawnEnclosure();
+            spawnEnclosure();
             isMoving = true;
             targetSpeed = 1.3; 
         }
 
         function replayInstruction() { if(lastSpokenText) speak(lastSpokenText); }
 
+        function resizeConfetti() {
+            confCanvas.width = window.innerWidth;
+            confCanvas.height = window.innerHeight;
+        }
+
+        function startFireworks() {
+            for(let i=0; i<150; i++) {
+                confettis.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight - window.innerHeight,
+                    r: 5 + Math.random() * 8,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    vy: 3 + Math.random() * 5,
+                    vx: Math.random() * 4 - 2,
+                    rotation: Math.random() * Math.PI
+                });
+            }
+        }
+
+        function drawConfetti() {
+            if (!confCtx) return;
+            confCtx.clearRect(0,0,confCanvas.width, confCanvas.height);
+            confettis.forEach((c) => {
+                c.y += c.vy;
+                c.x += c.vx;
+                c.rotation += 0.1;
+                if(c.y > confCanvas.height) c.y = -10;
+                
+                confCtx.save();
+                confCtx.translate(c.x, c.y);
+                confCtx.rotate(c.rotation);
+                confCtx.fillStyle = c.color;
+                confCtx.fillRect(-c.r/2, -c.r/2, c.r, c.r);
+                confCtx.restore();
+            });
+        }
+
         function animate() {
             requestAnimationFrame(animate);
+            drawConfetti();
+
             if (isPlaying) {
                 gameSpeed = THREE.MathUtils.lerp(gameSpeed, targetSpeed, 0.05);
+                
                 roadTiles.forEach(tile => {
                     tile.position.z += gameSpeed;
                     if(tile.position.z > 60) tile.position.z -= 600;
                 });
+                
                 scenery.forEach(item => {
                     item.position.z += gameSpeed;
                     if(item.position.z > 60) item.position.z -= 480;
                 });
 
-                if (enclosureGroup) {
-                    enclosureGroup.position.z += gameSpeed;
-                    if (isMoving && enclosureGroup.position.z > 0) {
-                        isMoving = false;
-                        targetSpeed = 0;
-                        setTimeout(async () => {
-                            lastSpokenText = `Look at the fence. Where is the ${currentTarget.en}? Click the right sign.`;
-                            await speak(lastSpokenText);
-                            startTimer();
-                        }, 500);
+                // Gestion du défilement des enclos
+                activeEnclosures.forEach((enc, index) => {
+                    enc.position.z += gameSpeed;
+                    // L'enclos part vers l'arrière et est détruit quand il est hors champ
+                    if(enc.position.z > 80) {
+                        scene.remove(enc);
+                        activeEnclosures.splice(index, 1);
+                        if(currentEnclosure === enc) currentEnclosure = null;
                     }
+                });
+
+                // Arrêt de la voiture face au nouvel enclos
+                if (currentEnclosure && isMoving && currentEnclosure.position.z > 0) {
+                    isMoving = false;
+                    targetSpeed = 0;
+                    setTimeout(async () => {
+                        lastSpokenText = `Look at the fence. Where is the ${currentTarget.en}? Click the right sign.`;
+                        await speak(lastSpokenText);
+                        startTimer();
+                    }, 500);
                 }
+
                 car.position.y = 0.2 + Math.sin(Date.now() * 0.01) * 0.02;
             }
             renderer.render(scene, camera);
@@ -587,6 +668,13 @@
         function startGame() {
             document.getElementById('menu').style.display = 'none';
             document.getElementById('end-screen').style.display = 'none';
+            document.getElementById('confetti-canvas').style.display = 'none';
+            
+            activeEnclosures.forEach(enc => scene.remove(enc));
+            activeEnclosures = [];
+            currentEnclosure = null;
+            confettis = [];
+            
             isPlaying = true;
             questionCount = 0;
             correctAnswers = 0;
@@ -598,6 +686,24 @@
             stopTimer();
             document.getElementById('end-screen').style.display = 'flex';
             document.getElementById('end-score').innerText = `SCORE FINAL : ${correctAnswers} / 10`;
+
+            const visual = document.getElementById('end-visuals');
+            visual.innerHTML = '';
+            
+            if (correctAnswers === 10) {
+                visual.innerHTML = '<div class="trophy">🏆</div>';
+                document.getElementById('confetti-canvas').style.display = 'block';
+                startFireworks();
+            } else {
+                let stars = (correctAnswers >= 8) ? 3 : (correctAnswers >= 4) ? 2 : 1;
+                for(let i=0; i<stars; i++) {
+                    const s = document.createElement('span');
+                    s.className = 'star';
+                    s.innerText = '⭐';
+                    s.style.animationDelay = `${i * 0.3}s`;
+                    visual.appendChild(s);
+                }
+            }
         }
 
         window.onload = init;
@@ -605,6 +711,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            resizeConfetti();
         });
     </script>
 </body>

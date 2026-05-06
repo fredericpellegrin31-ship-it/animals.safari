@@ -160,7 +160,6 @@
             scene.background = new THREE.Color(0x051005); 
             scene.fog = new THREE.Fog(0x051005, 30, 120);
 
-            // Caméra reculée pour avoir tout l'enclos dans le champ de vision
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(32, 8, 0); 
             camera.lookAt(-5, 3, 0);
@@ -184,11 +183,8 @@
             createRoad();
             createRealisticJurassicCar();
 
-            // Création des arbres UNIQUEMENT en arrière-plan (à gauche de la route)
             for(let i=0; i<80; i++) {
-                // Zone lointaine arrière
                 createRealisticTree(-18 - Math.random()*25, -i * 6 + 120);
-                // Densification au fond
                 if(i % 2 === 0) createRealisticTree(-30 - Math.random()*25, -i * 6 + 120);
             }
 
@@ -222,69 +218,58 @@
             }
         }
 
-        // Modélisation très réaliste de la Ford Explorer Jurassic Park
         function createRealisticJurassicCar() {
             car = new THREE.Group();
             
-            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x2d5a27 }); // Vert Jungle
-            const yellowMat = new THREE.MeshPhongMaterial({ color: 0xeab308 }); // Jaune
-            const redMat = new THREE.MeshPhongMaterial({ color: 0x991b1b }); // Rouge
-            const blackMat = new THREE.MeshPhongMaterial({ color: 0x111111 }); // Noir plastique
-            const glassMat = new THREE.MeshPhongMaterial({ color: 0x222222, transparent: true, opacity: 0.8 }); // Verre teinté
-            const hubMat = new THREE.MeshPhongMaterial({ color: 0xcc1111 }); // Jantes rouges
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x2d5a27 }); 
+            const yellowMat = new THREE.MeshPhongMaterial({ color: 0xeab308 }); 
+            const redMat = new THREE.MeshPhongMaterial({ color: 0x991b1b }); 
+            const blackMat = new THREE.MeshPhongMaterial({ color: 0x111111 }); 
+            const glassMat = new THREE.MeshPhongMaterial({ color: 0x222222, transparent: true, opacity: 0.8 }); 
+            const hubMat = new THREE.MeshPhongMaterial({ color: 0xcc1111 }); 
             
-            // Base du châssis (Vert)
             const baseBody = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 5.4), bodyMat);
             baseBody.position.y = 0.85;
             baseBody.castShadow = true;
             car.add(baseBody);
 
-            // Bande jaune centrale
             const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.2, 5.45), yellowMat);
             stripe.position.y = 1.25;
             car.add(stripe);
 
-            // Capot plongeant (Jaune/Vert)
             const hood = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.3, 1.6), yellowMat);
             hood.position.set(0, 1.35, 1.9);
             hood.rotation.x = 0.08;
             car.add(hood);
 
-            // Cabine (Rouge)
             const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.9, 3.6), redMat);
             cabin.position.set(0, 1.8, -0.4);
             car.add(cabin);
 
-            // Fenêtres noires autour de la cabine
             const windows = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.6, 3.4), glassMat);
             windows.position.set(0, 1.8, -0.4);
             car.add(windows);
 
-            // Pare-brise incliné
             const windShield = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 0.1), glassMat);
             windShield.position.set(0, 1.65, 1.55);
             windShield.rotation.x = -Math.PI / 3.5;
             car.add(windShield);
 
-            // Vitre arrière inclinée
             const backGlass = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 0.1), glassMat);
             backGlass.position.set(0, 1.7, -2.2);
             backGlass.rotation.x = Math.PI / 8;
             car.add(backGlass);
 
-            // Bulle de toit panoramique (Verre)
             const roofGlass = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 2.2), glassMat);
             roofGlass.position.set(0, 2.26, -0.4);
             car.add(roofGlass);
 
-            // Galerie de toit (Barres noires)
             const railGeo = new THREE.CylinderGeometry(0.05, 0.05, 3.8, 8);
             [0.9, -0.9].forEach(x => {
                 const rail = new THREE.Mesh(railGeo, blackMat);
                 rail.rotation.x = Math.PI/2;
                 rail.position.set(x, 2.35, -0.4);
                 car.add(rail);
-                // Fixations de la galerie
                 for(let z=-1.5; z<=1.5; z+=1.5) {
                     const support = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.1), blackMat);
                     support.position.set(x, 2.25, -0.4 + z);
@@ -292,7 +277,6 @@
                 }
             });
 
-            // Projecteurs sur le toit
             const spotGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 16);
             for(let i=-0.6; i<=0.6; i+=0.4) {
                 const spot = new THREE.Mesh(spotGeo, blackMat);
@@ -304,7 +288,6 @@
                 car.add(lightLens);
             }
 
-            // Calandre et Pare-buffle massif (Bullbar)
             const grill = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.1), blackMat);
             grill.position.set(0, 0.85, 2.7);
             car.add(grill);
@@ -319,13 +302,11 @@
             bb2.position.set(0, 0.6, 2.9);
             car.add(bb2);
 
-            // Roue de secours arrière
             const spareTire = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.3, 24), blackMat);
             spareTire.rotation.x = Math.PI/2;
             spareTire.position.set(0, 1.2, -2.85);
             car.add(spareTire);
             
-            // Roues et passages de roues (Garde-boues)
             const wheelGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.6, 24);
             const fenderGeo = new THREE.BoxGeometry(0.8, 0.15, 1.8);
             
@@ -342,17 +323,17 @@
                 w.position.set(...pos);
                 car.add(w);
 
-                // Garde-boues noirs au-dessus des roues
                 const fender = new THREE.Mesh(fenderGeo, blackMat);
                 fender.position.set(pos[0], pos[1] + 0.65, pos[2]);
                 car.add(fender);
             });
 
             car.position.y = 0.2;
+            // Rotation à 180 degrés pour remettre le pare-buffle dans le bon sens d'avancée
+            car.rotation.y = Math.PI; 
             scene.add(car);
         }
 
-        // Création d'arbres plus réalistes (type feuillage de jungle dense)
         function createRealisticTree(x, z) {
             const tree = new THREE.Group();
             const trunkMat = new THREE.MeshPhongMaterial({color: 0x3d2b1f});
@@ -360,22 +341,19 @@
             
             const scale = 0.8 + Math.random() * 1.5;
             
-            // Tronc légèrement conique
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 8, 7), trunkMat);
             trunk.position.y = 4;
             tree.add(trunk);
 
-            // Canopée volumineuse faite de multiples sphères (effet touffu)
             const canopyHeights = [6, 7.5, 9];
             const canopyRadii = [3.5, 2.8, 2];
             
             for(let i=0; i<3; i++) {
-                // Utilisation d'un dodécaèdre pour donner un effet de feuillage "low poly" mais organique
                 const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(canopyRadii[i], 1), leavesMat);
                 leaves.position.y = canopyHeights[i];
                 leaves.position.x = (Math.random() - 0.5) * 1.5;
                 leaves.position.z = (Math.random() - 0.5) * 1.5;
-                leaves.scale.y = 0.8; // aplatir un peu la sphère
+                leaves.scale.y = 0.8; 
                 tree.add(leaves);
             }
 
@@ -394,7 +372,6 @@
             
             enclosureGroup = new THREE.Group();
             
-            // Mur reculé pour bien voir
             const wall = new THREE.Mesh(new THREE.BoxGeometry(1, 12, 30), new THREE.MeshPhongMaterial({ color: 0x222222 }));
             wall.position.set(-15, 6, 0);
             enclosureGroup.add(wall);
@@ -405,8 +382,6 @@
                 enclosureGroup.add(wire);
             });
 
-            // Espacement calculé pour tout faire rentrer à l'écran
-            // Positions: -6.75, -2.25, 2.25, 6.75 (largeur totale couverte = 13.5 unités)
             choices.forEach((choice, i) => {
                 const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
                 textureLoader.load(`${choice.id}.png`, (tex) => {
@@ -420,7 +395,6 @@
                     mat.map = new THREE.CanvasTexture(canvas); mat.needsUpdate = true;
                 });
 
-                // Panneaux plus adaptés et très rapprochés pour être visibles par la caméra
                 const sign = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.2, 4.2), mat);
                 sign.rotation.y = -0.15; 
                 sign.position.set(-13, 5, -6.75 + (i * 4.5));
@@ -451,14 +425,22 @@
             stopTimer();
             const feedbackEl = document.getElementById('feedback-text');
             
+            // Recherche du panneau avec la bonne réponse
+            const correctObj = enclosureGroup.children.find(c => c.userData && c.userData.id === currentTarget.id);
+            
             if (obj.userData.id === currentTarget.id) {
                 correctAnswers++;
                 feedbackEl.innerText = "EXCELLENT!";
                 feedbackEl.style.color = "#4ade80";
+                obj.material.color.setHex(0x4ade80); // Colore l'image cliquée en Vert
                 speak("Excellent! That is the " + currentTarget.en + ".");
             } else {
                 feedbackEl.innerText = "OOPS...";
                 feedbackEl.style.color = "#ef4444";
+                obj.material.color.setHex(0xef4444); // Colore l'image cliquée en Rouge
+                if (correctObj) {
+                    correctObj.material.color.setHex(0x4ade80); // Colore la bonne réponse en Vert
+                }
                 const hitAnimal = animals.find(a => a.id === obj.userData.id);
                 speak("No, that was the " + hitAnimal.en + ". The " + currentTarget.en + " was there.");
             }
@@ -497,16 +479,24 @@
             feedbackEl.innerText = "TIME OUT!";
             feedbackEl.style.color = "#fbbf24";
             feedbackEl.style.opacity = "1";
+            
+            // Montre la bonne réponse en vert quand le temps est écoulé
+            if (enclosureGroup) {
+                const correctObj = enclosureGroup.children.find(c => c.userData && c.userData.id === currentTarget.id);
+                if (correctObj) correctObj.material.color.setHex(0x4ade80);
+            }
+
             setTimeout(() => { feedbackEl.style.opacity = "0"; }, 2500);
             speak(`Time is up! You should have clicked on the ${currentTarget.en}.`);
             proceedToNext();
         }
 
         function proceedToNext() {
+            // Un peu plus de délai pour bien voir les couleurs de feedback avant d'avancer
             setTimeout(() => {
                 if(enclosureGroup) { scene.remove(enclosureGroup); enclosureGroup = null; }
                 nextTurn();
-            }, 3000);
+            }, 3500); 
         }
 
         async function speak(text) {

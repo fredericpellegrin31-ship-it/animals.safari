@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>English Safari - Jurassic Explorer</title>
+    <title>English Safari</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -100,7 +100,7 @@
     <canvas id="confetti-canvas"></canvas>
 
     <div id="menu" class="menu-overlay">
-        <h1 class="text-5xl md:text-7xl font-black mb-4 text-yellow-500 uppercase tracking-tighter">JURASSIC SAFARI</h1>
+        <h1 class="text-5xl md:text-7xl font-black mb-4 text-yellow-500 uppercase tracking-tighter">ANIMALS SAFARI</h1>
         <p class="mb-10 text-xl md:text-2xl text-green-500 font-bold uppercase">Système de Guidage Vocal</p>
         <button class="btn" onclick="startGame()">LANCER LE TOUR</button>
     </div>
@@ -654,7 +654,7 @@
                     isMoving = false;
                     targetSpeed = 0;
                     setTimeout(async () => {
-                        lastSpokenText = `Look at the fence. Where is the ${currentTarget.en}? Click the right sign.`;
+                        lastSpokenText = `Where is the ${currentTarget.en}?`;
                         await speak(lastSpokenText);
                         startTimer();
                     }, 500);
